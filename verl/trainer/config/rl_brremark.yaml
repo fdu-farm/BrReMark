@@ -1,0 +1,82 @@
+# RL Training Configuration for BrReMark
+# Based on train_BrReMark_RL.sh parameters
+
+debug: False
+vs_debug: False
+
+data:
+  train_files: ["data/med_box_all.parquet"]
+  val_files: ["data/med_box_all.parquet"]
+  train_batch_size: 128
+  max_prompt_length: 8192
+  max_response_length: 20480
+  return_raw_chat: True
+  filter_overlong_prompts: True
+  reward_fn_key: data_source
+
+algorithm:
+  adv_estimator: grpo
+  kl_ctrl:
+    kl_coef: 0.0
+
+actor_rollout_ref:
+  model:
+    path: ./output/med_tool_sft_12epochs-VL
+    use_remove_padding: True
+    enable_gradient_checkpointing: True
+
+  actor:
+    optim:
+      lr: 1e-6
+      warmup_style: cosine
+      warmup_steps_ratio: 0.1
+    ppo_mini_batch_size: 128
+    ppo_micro_batch_size_per_gpu: 8
+    use_kl_loss: False
+    kl_loss_coef: 0.0
+    kl_loss_type: low_var_kl
+    entropy_coeff: 0.0
+    ulysses_sequence_parallel_size: 1
+    checkpoint:
+      contents: ['model', 'hf_model', 'optimizer', 'extra']
+    fsdp_config:
+      param_offload: True
+      optimizer_offload: True
+
+  rollout:
+    name: vllm
+    n: 8
+    tensor_model_parallel_size: 1
+    log_prob_micro_batch_size_per_gpu: 8
+    max_num_batched_tokens: 32768
+    gpu_memory_utilization: 0.8
+    enforce_eager: False
+    free_cache_engine: False
+    enable_chunked_prefill: False
+    agent:
+      activate_agent: True
+      tool_name_key: env_name
+      single_response_max_tokens: 10240
+      max_turns: 2
+      concurrent_workers: 1
+      show_tqdm: True
+
+  ref:
+    log_prob_micro_batch_size_per_gpu: 1
+    fsdp_config:
+      param_offload: True
+
+trainer:
+  critic_warmup: 0
+  logger: ['console', 'tensorboard']
+  val_before_train: False
+  n_gpus_per_node: 8
+  nnodes: 1
+  save_freq: 150
+  test_freq: 10000
+  project_name: BrReMark
+  experiment_name: rl_brremark
+  default_local_dir: ./checkpoint/BrReMark/rl_brremark
+  tensorboard_dir: ./checkpoint/logs/tensorboard
+  rl_logging_board_dir: ./checkpoint/logs/rl_logging_board
+  total_epochs: 2

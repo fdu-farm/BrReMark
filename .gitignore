@@ -1,0 +1,55 @@
+# Paper writing (private)
+Brain_Anomaly_FromFeb24/
+*.pdf
+
+# Checkpoints & model weights
+checkpoint/
+checkpoints/
+*.pt
+*.bin
+*.safetensors
+
+# Data (not released, see docs/DATA.md)
+data/
+brain_dataset/
+*.parquet
+
+# Logs
+logs/
+wandb/
+outputs/
+*.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.claude/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.whl
+.gradio/
+test/

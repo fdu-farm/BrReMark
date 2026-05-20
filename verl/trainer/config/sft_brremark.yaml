@@ -1,0 +1,93 @@
+# BraTS Brain MRI Anomaly Detection - Two-Turn SFT Training Configuration
+# Per BrReMark paper brremark_sft_notes.md:
+# - Round 0: (I, Q) -> (r0*, a0*) = Thought 1 + Action
+# - Round 1: (I, Q, r0*, a0*, I'*, f*) -> (r1*, O*) = Thought 2 + Final Answer
+
+data:
+  # Batch size configuration - for 3 GPUs: train_batch_size / dp_size = micro_batch_size_per_gpu
+  train_batch_size: 6  # Global batch size (3 GPUs × 2 per GPU)
+  micro_batch_size: null
+  micro_batch_size_per_gpu: 2  # Per-GPU batch size
+
+  # Data files (parquet format - two-turn with system prompt)
+  train_files: ~/BrReMark_Data/sft_brats_train_twoturn_v2.parquet
+  val_files: ~/BrReMark_Data/sft_brats_val_twoturn_v2.parquet
+
+  # Multi-turn settings - ENABLED for two-turn format
+  multiturn:
+    enable: true
+    messages_key: messages  # Column name containing the messages list
+
+  # Sequence length configuration - increased for two-turn with images
+  max_length: 4096  # Longer for two-turn conversations with 2 images
+  truncation: error  # Fail if sequence exceeds max_length
+
+  # Other settings
+  balance_dp_token: False
+  chat_template: null
+  custom_cls:
+    path: verl/utils/dataset/multiturn_sft_dataset_qwen_vl.py
+    name: MultiTurnSFTDatasetQwenVL
+
+  # VL dataset settings
+  use_vl_dataset: true
+  image_key: null  # Images are embedded in messages, not a separate column
+
+model:
+  # Model configuration - using local Qwen2.5-VL model
+  partial_pretrain: <BASE_MODEL_PATH>
+
+  # FSDP configuration
+  fsdp_config:
+    wrap_policy:
+      min_num_params: 0
+    cpu_offload: False
+    offload_params: False
+
+  # Model loading settings
+  external_lib: null
+  enable_gradient_checkpointing: True  # Critical for two-turn (more memory usage)
+  trust_remote_code: True
+
+  # LoRA configuration (disabled for full fine-tuning)
+  lora_rank: 0
+  lora_alpha: 16
+  target_modules: all-linear
+
+  # Liger kernel
+  use_liger: False
+
+optim:
+  # Optimizer configuration - increased from 1e-6 to help learn format
+  lr: 5e-6  # Increased to help model learn <tool_call> format
+  betas: [0.9, 0.95]
+  weight_decay: 0.01
+  warmup_steps_ratio: 0.1
+  clip_grad: 1.0
+  lr_scheduler: cosine
+
+# Sequence parallelism
+ulysses_sequence_parallel_size: 1
+
+# Remove padding optimization
+use_remove_padding: False
+
+trainer:
+  # Checkpoint and logging directories
+  default_local_dir: /tmp/sft_brats_twoturn_v2
+  default_hdfs_dir: null
+  resume_path: null
+
+  # Experiment tracking
+  project_name: brats-sft-twoturn
+  experiment_name: stage1_twoturn_reasoning
+
+  # Training schedule - paper uses 12 epochs
+  total_epochs: 12
+  total_training_steps: null
+
+  # Logging configuration
+  logger: ['console']
+
+  # Random seed
+  seed: 42
